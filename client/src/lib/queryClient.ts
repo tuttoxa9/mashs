@@ -1,15 +1,12 @@
+import { QueryClient } from '@tanstack/react-query';
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 
-// Создаем экземпляр Query Client для управления запросами и кешированием
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 минут
-      cacheTime: 1000 * 60 * 30, // 30 минут
-      retry: 1,
-      refetchOnWindowFocus: true,
+      retry: false,
+      refetchOnWindowFocus: false,
     },
   },
 });
