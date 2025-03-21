@@ -365,8 +365,8 @@ const notificationConverter: FirestoreDataConverter<Notification> = {
     return {
       id: notification.id,
       userId: notification.userId,
+      title: notification.title,
       message: notification.message,
-      type: notification.type,
       read: notification.read,
       createdAt: notification.createdAt
     };
@@ -376,8 +376,8 @@ const notificationConverter: FirestoreDataConverter<Notification> = {
     return {
       id: data.id,
       userId: data.userId,
+      title: data.title || "Уведомление", // Добавляем дефолтное значение если не найдено
       message: data.message,
-      type: data.type,
       read: data.read,
       createdAt: data.createdAt
     };
