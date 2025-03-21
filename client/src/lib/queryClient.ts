@@ -1,4 +1,10 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { cacheService } from './cacheService';
+import { 
+  userService, clientService, vehicleService, 
+  serviceService, shiftService, appointmentService,
+  appointmentServiceService, notificationService
+} from './firestore';
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -41,17 +47,130 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Ключи запросов для всех коллекций в приложении
+export const queryKeys = {
+  users: 'users',
+  clients: 'clients',
+  vehicles: 'vehicles',
+  services: 'services',
+  shifts: 'shifts',
+  appointments: 'appointments',
+  appointmentServices: 'appointment_services',
+  notifications: 'notifications',
+  
+  // Конкретные элементы коллекций по ID
+  user: (id: number) => ['users', id],
+  client: (id: number) => ['clients', id],
+  vehicle: (id: number) => ['vehicles', id],
+  service: (id: number) => ['services', id],
+  shift: (id: number) => ['shifts', id],
+  appointment: (id: number) => ['appointments', id],
+  
+  // Запросы для фильтрации
+  vehiclesByClient: (clientId: number) => ['vehicles', 'client', clientId],
+  appointmentsByClient: (clientId: number) => ['appointments', 'client', clientId],
+  appointmentsByDate: (date: string) => ['appointments', 'date', date],
+  appointmentsByDateRange: (startDate: string, endDate: string) => ['appointments', 'dateRange', startDate, endDate],
+  shiftsByDate: (date: string) => ['shifts', 'date', date],
+  shiftsByUser: (userId: number) => ['shifts', 'user', userId],
+  notificationsByUser: (userId: number) => ['notifications', 'user', userId],
+  
+  // Отчеты
+  dailyReport: (date: string) => ['reports', 'daily', date],
+  weeklyReport: (startDate: string) => ['reports', 'weekly', startDate],
+  monthlyReport: (month: number, year: number) => ['reports', 'monthly', month, year],
+  employeeReport: (userId: number, startDate: string, endDate: string) => 
+    ['reports', 'employee', userId, startDate, endDate]
+};
+
+// Функции для синхронизации данных между кэшем и Firebase
+export const syncServices = {
+  // Инициализация кэша из Firestore при первой загрузке
+  async initializeCache() {
+    try {
+      await cacheService.initialize();
+      
+      // Загружаем основные коллекции
+      const collections = [
+        'users', 'clients', 'vehicles', 'services', 
+        'shifts', 'appointments', 'appointment_services', 'notifications'
+      ];
+      
+      for (const collection of collections) {
+        await cacheService.fetchCollection(collection);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Ошибка инициализации кэша:', error);
+      return false;
+    }
+  },
+  
+  // Функции для синхронизации отдельных коллекций
+  async syncUsers() {
+    await cacheService.fetchCollection('users');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.users] });
+  },
+  
+  async syncClients() {
+    await cacheService.fetchCollection('clients');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.clients] });
+  },
+  
+  async syncVehicles() {
+    await cacheService.fetchCollection('vehicles');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.vehicles] });
+  },
+  
+  async syncServices() {
+    await cacheService.fetchCollection('services');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.services] });
+  },
+  
+  async syncShifts() {
+    await cacheService.fetchCollection('shifts');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.shifts] });
+  },
+  
+  async syncAppointments() {
+    await cacheService.fetchCollection('appointments');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.appointments] });
+  },
+  
+  async syncNotifications() {
+    await cacheService.fetchCollection('notifications');
+    queryClient.invalidateQueries({ queryKey: [queryKeys.notifications] });
+  },
+  
+  // Функция для синхронизации всех данных
+  async syncAll() {
+    const collections = [
+      'users', 'clients', 'vehicles', 'services', 
+      'shifts', 'appointments', 'appointment_services', 'notifications'
+    ];
+    
+    for (const collection of collections) {
+      await cacheService.fetchCollection(collection);
+    }
+    
+    // Инвалидируем все кэши запросов
+    queryClient.invalidateQueries();
+  }
+};
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnWindowFocus: true, // Обновление при возврате на страницу
+      staleTime: 5 * 60 * 1000, // 5 минут до устаревания данных
+      retry: 1, // Одна попытка повторного запроса при ошибке
+      networkMode: 'online', // Не выполнять запросы в офлайн режиме
     },
     mutations: {
-      retry: false,
+      retry: 1, // Одна попытка повторного запроса при ошибке
     },
   },
 });
