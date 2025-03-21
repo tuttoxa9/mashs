@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   
-  return d.toLocaleDateString('ru-RU', {
+  return d.toLocaleDateString('be-BY', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
@@ -16,12 +16,30 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('ru-RU', {
+  return new Intl.NumberFormat('be-BY', {
     style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    currency: 'BYN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(amount);
+}
+
+// Форматирование телефона по белорусскому формату
+export function formatBelarusPhone(phone: string): string {
+  // Удаляем все нецифровые символы
+  const digits = phone.replace(/\D/g, '');
+  
+  // Если телефон начинается с 8 или +375, форматируем его соответствующим образом
+  if (digits.startsWith('375') || digits.length === 12) {
+    // +375 XX XXX-XX-XX
+    return `+375 ${digits.slice(3, 5)} ${digits.slice(5, 8)}-${digits.slice(8, 10)}-${digits.slice(10, 12)}`;
+  } else if (digits.startsWith('80') || digits.length === 11) {
+    // 8 0XX XXX-XX-XX
+    return `8 0${digits.slice(2, 4)} ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}`;
+  } else {
+    // Если формат не определен, возвращаем как есть
+    return phone;
+  }
 }
 
 export function formatTime(time: string): string {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { 
   Card,
@@ -19,11 +19,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { db } from "@/lib/firebase";
+import { formatBelarusPhone } from "@/lib/utils";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const profileFormSchema = z.object({
@@ -55,6 +59,7 @@ export default function Settings() {
   const { user, userData } = useAuth();
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("profile");
+  const [firebaseStatus, setFirebaseStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   
   // Profile form
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
@@ -114,6 +119,38 @@ export default function Settings() {
       description: "Ваши предпочтения уведомлений сохранены",
     });
   };
+  
+  // Проверка подключения к Firebase
+  const checkFirebaseConnection = async () => {
+    setFirebaseStatus('loading');
+    try {
+      // Пытаемся получить данные из Firestore для проверки подключения
+      const q = query(collection(db, 'users'), limit(1));
+      await getDocs(q);
+      setFirebaseStatus('connected');
+      
+      toast({
+        title: "Firebase подключен",
+        description: "Соединение с Firebase успешно установлено.",
+      });
+    } catch (error) {
+      console.error("Error checking Firebase connection:", error);
+      setFirebaseStatus('error');
+      
+      toast({
+        title: "Ошибка подключения к Firebase",
+        description: "Не удалось подключиться к Firebase. Проверьте настройки и параметры доступа.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // При открытии вкладки системных настроек выполняем проверку
+  useEffect(() => {
+    if (selectedTab === 'system') {
+      checkFirebaseConnection();
+    }
+  }, [selectedTab]);
 
   return (
     <AppLayout title="Настройки">
@@ -449,13 +486,66 @@ export default function Settings() {
                   Автомойка - Система управления v1.0.0
                 </p>
                 <p className="text-sm text-gray-500">
-                  &copy; 2023 Все права защищены
+                  &copy; 2023-2025 Все права защищены
                 </p>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <h3 className="text-lg font-medium">Firebase интеграция</h3>
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md">
+                
+                {firebaseStatus === 'loading' && (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <p className="text-sm">
+                      Проверка подключения к Firebase...
+                    </p>
+                  </div>
+                )}
+                
+                {firebaseStatus === 'connected' && (
+                  <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-md flex items-center space-x-2">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Firebase успешно подключен
+                      </p>
+                      <p className="text-xs">
+                        Все функции системы доступны
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {firebaseStatus === 'error' && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Ошибка подключения к Firebase
+                      </p>
+                      <p className="text-xs">
+                        Проверьте настройки доступа в Firebase Console и убедитесь, что все переменные окружения установлены корректно
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                <Button 
+                  onClick={checkFirebaseConnection} 
+                  className="mt-2"
+                  disabled={firebaseStatus === 'loading'}
+                >
+                  {firebaseStatus === 'loading' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Проверка...
+                    </>
+                  ) : (
+                    "Проверить соединение"
+                  )}
+                </Button>
+                
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md mt-2">
                   <p className="text-sm">
                     Для полноценной работы системы необходимо настроить проект Firebase.
                     Пожалуйста, убедитесь, что все необходимые переменные окружения указаны в настройках проекта.
