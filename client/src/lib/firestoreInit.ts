@@ -79,32 +79,44 @@ async function createUsers(): Promise<User[]> {
       name: "Админ",
       surname: "Администраторов",
       role: "admin",
-      createdAt: new Date().toISOString(),
-      phone: "+7 (999) 123-4567"
+      createdAt: new Date(),
+      phone: "+7 (999) 123-4567",
+      password: "admin123",
+      avatarUrl: null,
+      firebaseUid: null
     },
     {
       email: "ivan@example.com",
       name: "Иван",
       surname: "Петров",
       role: "employee",
-      createdAt: new Date().toISOString(),
-      phone: "+7 (999) 234-5678"
+      createdAt: new Date(),
+      phone: "+7 (999) 234-5678",
+      password: "ivan123",
+      avatarUrl: null,
+      firebaseUid: null
     },
     {
       email: "elena@example.com",
       name: "Елена",
       surname: "Сидорова",
       role: "employee",
-      createdAt: new Date().toISOString(),
-      phone: "+7 (999) 345-6789"
+      createdAt: new Date(),
+      phone: "+7 (999) 345-6789",
+      password: "elena123",
+      avatarUrl: null,
+      firebaseUid: null
     },
     {
       email: "dmitry@example.com",
       name: "Дмитрий",
       surname: "Иванов",
       role: "employee",
-      createdAt: new Date().toISOString(),
-      phone: "+7 (999) 456-7890"
+      createdAt: new Date(),
+      phone: "+7 (999) 456-7890",
+      password: "dmitry123",
+      avatarUrl: null,
+      firebaseUid: null
     }
   ];
   
@@ -126,35 +138,35 @@ async function createClients(): Promise<Client[]> {
       surname: "Смирнов",
       email: "alexey@example.com",
       phone: "+7 (999) 111-2233",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       name: "Ольга",
       surname: "Козлова",
       email: "olga@example.com",
       phone: "+7 (999) 222-3344",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       name: "Михаил",
       surname: "Новиков",
       email: "mikhail@example.com",
       phone: "+7 (999) 333-4455",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       name: "Анна",
       surname: "Соколова",
       email: "anna@example.com",
       phone: "+7 (999) 444-5566",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       name: "Сергей",
       surname: "Морозов",
       email: "sergey@example.com",
       phone: "+7 (999) 555-6677",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     }
   ];
   
@@ -178,7 +190,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2019,
       licensePlate: "А123БВ777",
       color: "Белый",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       clientId: clients[0].id,
@@ -187,7 +199,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2020,
       licensePlate: "В234ГД777",
       color: "Синий",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       clientId: clients[1].id,
@@ -196,7 +208,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2021,
       licensePlate: "С345ЕЖ777",
       color: "Красный",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       clientId: clients[2].id,
@@ -205,7 +217,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2018,
       licensePlate: "О456ПР777",
       color: "Серебристый",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       clientId: clients[3].id,
@@ -214,7 +226,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2020,
       licensePlate: "Т567УФ777",
       color: "Черный",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     },
     {
       clientId: clients[4].id,
@@ -223,7 +235,7 @@ async function createVehicles(clients: Client[]): Promise<Vehicle[]> {
       year: 2022,
       licensePlate: "Х678ЦЧ777",
       color: "Серый",
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     }
   ];
   
@@ -423,7 +435,7 @@ async function createAppointments(clients: Client[], users: User[], vehicles: Ve
         vehicleId: vehicle.id,
         totalPrice,
         notes: status === "cancelled" ? "Клиент отменил запись" : null,
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
       });
     }
   }

@@ -72,8 +72,11 @@ export const loginWithGoogle = async (): Promise<User> => {
       name: firebaseUser.displayName?.split(' ')[0] || "Пользователь",
       surname: firebaseUser.displayName?.split(' ')[1] || "",
       role: "admin", // Роль должна определяться по данным из базы
-      createdAt: new Date().toISOString(),
-      phone: firebaseUser.phoneNumber || ""
+      createdAt: new Date(),
+      phone: firebaseUser.phoneNumber || "",
+      password: "", // Обязательное поле
+      avatarUrl: null,
+      firebaseUid: firebaseUser.uid
     };
   } catch (error: any) {
     console.error("Error signing in with Google", error);
@@ -110,8 +113,11 @@ export const handleAuthRedirect = async (): Promise<User | null> => {
         name: firebaseUser.displayName?.split(' ')[0] || "Пользователь",
         surname: firebaseUser.displayName?.split(' ')[1] || "",
         role: "admin",
-        createdAt: new Date().toISOString(),
-        phone: firebaseUser.phoneNumber || ""
+        createdAt: new Date(),
+        phone: firebaseUser.phoneNumber || "",
+        password: "", // Обязательное поле
+        avatarUrl: null,
+        firebaseUid: firebaseUser.uid
       };
     }
     return null;

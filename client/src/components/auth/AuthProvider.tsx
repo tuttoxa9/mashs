@@ -76,8 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: firebaseUser.displayName?.split(' ')[0] || "Пользователь",
             surname: firebaseUser.displayName?.split(' ')[1] || "",
             role: "admin", // По умолчанию, в реальном приложении должно быть из базы данных
-            createdAt: new Date().toISOString(),
-            phone: firebaseUser.phoneNumber || ""
+            createdAt: new Date(),
+            phone: firebaseUser.phoneNumber || "",
+            password: "", // Обязательное поле
+            avatarUrl: null,
+            firebaseUid: firebaseUser.uid
           };
           
           setUserData(userProfileData);
