@@ -34,67 +34,31 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [userData, setUserData] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Создаем фиктивного пользователя для разработки
+  const mockUser = {} as FirebaseUser;
+  const mockUserData: User = {
+    id: 1,
+    email: "admin@example.com",
+    name: "Администратор",
+    surname: "Системы",
+    role: "admin",
+    createdAt: new Date(),
+    phone: "+7 (999) 123-45-67",
+    password: "",
+    avatarUrl: null,
+    firebaseUid: "mock-user-id"
+  };
+
+  const [user, setUser] = useState<FirebaseUser | null>(mockUser);
+  const [userData, setUserData] = useState<User | null>(mockUserData);
+  const [loading, setLoading] = useState(false); // Сразу отключаем загрузку
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Проверка редиректа после входа через Google Auth
+  // Временно отключаем Firebase аутентификацию
   useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const redirectUser = await handleAuthRedirect();
-        if (redirectUser) {
-          setUserData(redirectUser);
-          
-          toast({
-            title: "Успешный вход",
-            description: "Вы вошли в систему с помощью Google",
-          });
-        }
-      } catch (error) {
-        console.error("Ошибка при обработке редиректа:", error);
-      }
-    };
-    
-    checkRedirect();
-  }, [toast]);
-
-  // Отслеживание состояния аутентификации Firebase
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      setUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          // Здесь можно запросить дополнительные данные о пользователе из Firestore
-          // В реальном приложении нужно создать отдельную функцию для этого
-          const userProfileData: User = {
-            id: parseInt(firebaseUser.uid.substring(0, 8), 16),
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName?.split(' ')[0] || "Пользователь",
-            surname: firebaseUser.displayName?.split(' ')[1] || "",
-            role: "admin", // По умолчанию, в реальном приложении должно быть из базы данных
-            createdAt: new Date(),
-            phone: firebaseUser.phoneNumber || "",
-            password: "", // Обязательное поле
-            avatarUrl: null,
-            firebaseUid: firebaseUser.uid
-          };
-          
-          setUserData(userProfileData);
-        } catch (error) {
-          console.error("Ошибка при получении данных пользователя:", error);
-        }
-      } else {
-        setUserData(null);
-      }
-      
-      setLoading(false);
-    });
-  
-    return () => unsubscribe();
+    console.log("Firebase аутентификация временно отключена для разработки");
+    // Никаких запросов к Firebase не делаем
   }, []);
 
   const login = async (email: string, password: string) => {

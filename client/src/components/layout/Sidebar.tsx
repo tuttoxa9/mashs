@@ -72,9 +72,9 @@ export default function Sidebar({ open = false }: SidebarProps) {
             {navItems.map((item) => (
               <li key={item.path}>
                 <Link href={item.path}>
-                  <a 
+                  <div 
                     className={cn(
-                      "sidebar-item flex items-center p-3 rounded-md",
+                      "sidebar-item flex items-center p-3 rounded-md cursor-pointer",
                       isActive(item.path) && "active"
                     )}
                   >
@@ -85,7 +85,7 @@ export default function Sidebar({ open = false }: SidebarProps) {
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
-                  </a>
+                  </div>
                 </Link>
               </li>
             ))}
