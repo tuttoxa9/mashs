@@ -1,12 +1,15 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { syncServices, queryKeys } from '@/lib/queryClient';
-import { SyncStatus } from '@/components/ui/sync-indicator';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { 
   User, Client, Vehicle, Service, 
   Shift, Appointment, AppointmentService, Notification 
 } from '@shared/schema';
+
+// Тип статуса синхронизации
+export type SyncStatus = "syncing" | "synced" | "error" | "offline";
 
 // Интерфейс для глобального контекста данных
 interface GlobalDataContextType {
@@ -47,24 +50,18 @@ export function GlobalDataProvider({
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
-  // Инициализация кэша при запуске
+  // Инициализация данных при запуске
   useEffect(() => {
     const initialize = async () => {
       try {
         setSyncStatus("syncing");
-        const success = await syncServices.initializeCache();
-        
-        if (success) {
-          setSyncStatus("synced");
-          setLastSyncedAt(new Date());
-        } else {
-          setSyncStatus("error");
-        }
+        await syncAll();
+        setIsInitialized(true);
       } catch (error) {
         console.error("Ошибка инициализации данных:", error);
         setSyncStatus("error");
-      } finally {
         setIsInitialized(true);
       }
     };
@@ -120,7 +117,18 @@ export function GlobalDataProvider({
     
     try {
       setSyncStatus("syncing");
-      await syncServices.syncAll();
+      
+      // Обновляем все основные данные
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [queryKeys.users] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.clients] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.vehicles] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.services] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.shifts] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.appointments] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.notifications] })
+      ]);
+      
       setSyncStatus("synced");
       setLastSyncedAt(new Date());
     } catch (error) {
@@ -161,7 +169,7 @@ export function useGlobalData() {
 }
 
 /**
- * Хук для получения данных пользователей с синхронизацией
+ * Хук для получения данных пользователей
  */
 export function useUsers() {
   const { isOnline } = useGlobalData();
@@ -169,26 +177,18 @@ export function useUsers() {
   return useQuery({
     queryKey: [queryKeys.users],
     queryFn: async () => {
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem('cache_users') || '[]');
-      }
-      
-      // Здесь получаем данные из Firebase или API
       const response = await fetch('/api/users');
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem('cache_users', JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении пользователей');
+      }
+      return response.json();
     },
-    enabled: isOnline, // Запросы активны только в онлайн-режиме
-    staleTime: 5 * 60 * 1000 // 5 минут до устаревания данных
-  }) as any;
+    enabled: isOnline // Запросы активны только в онлайн-режиме
+  });
 }
 
 /**
- * Хук для получения данных клиентов с синхронизацией
+ * Хук для получения данных клиентов
  */
 export function useClients() {
   const { isOnline } = useGlobalData();
@@ -196,25 +196,18 @@ export function useClients() {
   return useQuery({
     queryKey: [queryKeys.clients],
     queryFn: async () => {
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem('cache_clients') || '[]');
-      }
-      
-      // Здесь получаем данные из Firebase или API
       const response = await fetch('/api/clients');
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem('cache_clients', JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении клиентов');
+      }
+      return response.json();
     },
     enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+  });
 }
 
 /**
- * Хук для получения данных автомобилей с синхронизацией
+ * Хук для получения данных автомобилей
  */
 export function useVehicles(clientId?: number) {
   const { isOnline } = useGlobalData();
@@ -222,28 +215,19 @@ export function useVehicles(clientId?: number) {
   return useQuery({
     queryKey: clientId ? queryKeys.vehiclesByClient(clientId) : [queryKeys.vehicles],
     queryFn: async () => {
-      const cacheKey = clientId ? `cache_vehicles_client_${clientId}` : 'cache_vehicles';
-      
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem(cacheKey) || '[]');
-      }
-      
-      // Здесь получаем данные из Firebase или API
-      const url = clientId ? `/api/vehicles?clientId=${clientId}` : '/api/vehicles';
+      const url = clientId ? `/api/clients/${clientId}/vehicles` : '/api/vehicles';
       const response = await fetch(url);
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении автомобилей');
+      }
+      return response.json();
     },
-    enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+    enabled: isOnline
+  });
 }
 
 /**
- * Хук для получения данных услуг с синхронизацией
+ * Хук для получения данных услуг
  */
 export function useServices() {
   const { isOnline } = useGlobalData();
@@ -251,105 +235,96 @@ export function useServices() {
   return useQuery({
     queryKey: [queryKeys.services],
     queryFn: async () => {
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem('cache_services') || '[]');
-      }
-      
-      // Здесь получаем данные из Firebase или API
       const response = await fetch('/api/services');
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem('cache_services', JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении услуг');
+      }
+      return response.json();
     },
-    enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+    enabled: isOnline
+  });
 }
 
 /**
- * Хук для получения данных смен с синхронизацией
+ * Хук для получения данных смен
  */
 export function useShifts(date?: string, userId?: number) {
   const { isOnline } = useGlobalData();
   
   return useQuery({
-    queryKey: date 
-      ? queryKeys.shiftsByDate(date) 
-      : userId 
-        ? queryKeys.shiftsByUser(userId) 
-        : [queryKeys.shifts],
+    queryKey: date ? queryKeys.shiftsByDate(date) : 
+             userId ? queryKeys.shiftsByUser(userId) : 
+             [queryKeys.shifts],
     queryFn: async () => {
-      const cacheKey = date 
-        ? `cache_shifts_date_${date}` 
-        : userId 
-          ? `cache_shifts_user_${userId}` 
-          : 'cache_shifts';
-          
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem(cacheKey) || '[]');
+      let url = '/api/shifts';
+      if (date) {
+        url += `?date=${date}`;
+      } else if (userId) {
+        url += `?userId=${userId}`;
       }
       
-      // Здесь получаем данные из Firebase или API
-      let url = '/api/shifts';
-      if (date) url += `?date=${date}`;
-      else if (userId) url += `?userId=${userId}`;
-      
       const response = await fetch(url);
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении смен');
+      }
+      return response.json();
     },
-    enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+    enabled: isOnline
+  });
 }
 
 /**
- * Хук для получения данных записей с синхронизацией
+ * Хук для получения данных записей
  */
-export function useAppointments(date?: string, clientId?: number) {
+export function useAppointments(date?: string, clientId?: number, userId?: number) {
   const { isOnline } = useGlobalData();
   
   return useQuery({
-    queryKey: date 
-      ? queryKeys.appointmentsByDate(date) 
-      : clientId 
-        ? queryKeys.appointmentsByClient(clientId) 
-        : [queryKeys.appointments],
+    queryKey: date ? queryKeys.appointmentsByDate(date) :
+              clientId ? queryKeys.appointmentsByClient(clientId) :
+              userId ? queryKeys.appointmentsByUser(userId) :
+              [queryKeys.appointments],
     queryFn: async () => {
-      const cacheKey = date 
-        ? `cache_appointments_date_${date}` 
-        : clientId 
-          ? `cache_appointments_client_${clientId}` 
-          : 'cache_appointments';
-          
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem(cacheKey) || '[]');
+      let url = '/api/appointments';
+      if (date) {
+        url += `?date=${date}`;
+      } else if (clientId) {
+        url += `?clientId=${clientId}`;
+      } else if (userId) {
+        url += `?userId=${userId}`;
       }
       
-      // Здесь получаем данные из Firebase или API
-      let url = '/api/appointments';
-      if (date) url += `?date=${date}`;
-      else if (clientId) url += `?clientId=${clientId}`;
-      
       const response = await fetch(url);
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении записей');
+      }
+      return response.json();
     },
-    enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+    enabled: isOnline
+  });
 }
 
 /**
- * Хук для получения данных уведомлений с синхронизацией
+ * Хук для получения услуг для конкретной записи
+ */
+export function useAppointmentServices(appointmentId: number) {
+  const { isOnline } = useGlobalData();
+  
+  return useQuery({
+    queryKey: queryKeys.appointmentServices(appointmentId),
+    queryFn: async () => {
+      const response = await fetch(`/api/appointments/${appointmentId}/services`);
+      if (!response.ok) {
+        throw new Error('Ошибка при получении услуг записи');
+      }
+      return response.json();
+    },
+    enabled: isOnline && !!appointmentId
+  });
+}
+
+/**
+ * Хук для получения уведомлений
  */
 export function useNotifications(userId?: number) {
   const { isOnline } = useGlobalData();
@@ -357,22 +332,93 @@ export function useNotifications(userId?: number) {
   return useQuery({
     queryKey: userId ? queryKeys.notificationsByUser(userId) : [queryKeys.notifications],
     queryFn: async () => {
-      const cacheKey = userId ? `cache_notifications_user_${userId}` : 'cache_notifications';
-      
-      if (!isOnline) {
-        // Возвращаем данные из кэша, если нет подключения
-        return JSON.parse(localStorage.getItem(cacheKey) || '[]');
+      let url = '/api/notifications';
+      if (userId) {
+        url += `?userId=${userId}`;
       }
       
-      // Здесь получаем данные из Firebase или API
-      const url = userId ? `/api/notifications?userId=${userId}` : '/api/notifications';
       const response = await fetch(url);
-      const data = await response.json();
-      
-      // Кэшируем данные для оффлайн-режима
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      return data;
+      if (!response.ok) {
+        throw new Error('Ошибка при получении уведомлений');
+      }
+      return response.json();
     },
-    enabled: isOnline // Запросы активны только в онлайн-режиме
-  }) as any;
+    enabled: isOnline
+  });
+}
+
+/**
+ * Хук для получения ежедневного отчета
+ */
+export function useDailyReport(date: string) {
+  const { isOnline } = useGlobalData();
+  
+  return useQuery({
+    queryKey: queryKeys.dailyReport(date),
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/daily?date=${date}`);
+      if (!response.ok) {
+        throw new Error('Ошибка при получении ежедневного отчета');
+      }
+      return response.json();
+    },
+    enabled: isOnline && !!date
+  });
+}
+
+/**
+ * Хук для получения еженедельного отчета
+ */
+export function useWeeklyReport(startDate: string) {
+  const { isOnline } = useGlobalData();
+  
+  return useQuery({
+    queryKey: queryKeys.weeklyReport(startDate),
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/weekly?startDate=${startDate}`);
+      if (!response.ok) {
+        throw new Error('Ошибка при получении еженедельного отчета');
+      }
+      return response.json();
+    },
+    enabled: isOnline && !!startDate
+  });
+}
+
+/**
+ * Хук для получения ежемесячного отчета
+ */
+export function useMonthlyReport(month: number, year: number) {
+  const { isOnline } = useGlobalData();
+  
+  return useQuery({
+    queryKey: queryKeys.monthlyReport(month, year),
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/monthly?month=${month}&year=${year}`);
+      if (!response.ok) {
+        throw new Error('Ошибка при получении ежемесячного отчета');
+      }
+      return response.json();
+    },
+    enabled: isOnline && !!month && !!year
+  });
+}
+
+/**
+ * Хук для получения отчета по сотруднику
+ */
+export function useEmployeeReport(userId: number, startDate: string, endDate: string) {
+  const { isOnline } = useGlobalData();
+  
+  return useQuery({
+    queryKey: queryKeys.employeeReport(userId, startDate, endDate),
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/employee/${userId}?startDate=${startDate}&endDate=${endDate}`);
+      if (!response.ok) {
+        throw new Error('Ошибка при получении отчета по сотруднику');
+      }
+      return response.json();
+    },
+    enabled: isOnline && !!userId && !!startDate && !!endDate
+  });
 }

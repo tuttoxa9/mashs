@@ -83,48 +83,26 @@ export const queryKeys = {
     ['reports', 'employee', userId, startDate, endDate]
 };
 
-// Функции для синхронизации данных между кэшем и Firebase
+// Функции для синхронизации данных
 export const syncServices = {
-  // Инициализация кэша из Firestore при первой загрузке
-  async initializeCache() {
+  // Синхронизация всех данных
+  async syncAll() {
     try {
-      await cacheService.initialize();
-      
-      // Загружаем основные коллекции
-      const collections = [
-        'users', 'clients', 'vehicles', 'services', 
-        'shifts', 'appointments', 'appointment_services', 'notifications'
-      ];
-      
-      for (const collection of collections) {
-        await cacheService.fetchCollection(collection);
-      }
-      
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [queryKeys.users] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.clients] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.vehicles] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.services] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.shifts] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.appointments] }),
+        queryClient.invalidateQueries({ queryKey: [queryKeys.notifications] })
+      ]);
       return true;
     } catch (error) {
-      console.error('Ошибка инициализации кэша:', error);
+      console.error('Ошибка синхронизации данных:', error);
       return false;
     }
-  },
-  
-  // Функции для синхронизации отдельных коллекций
-  async syncUsers() {
-    await cacheService.fetchCollection('users');
-    queryClient.invalidateQueries({ queryKey: [queryKeys.users] });
-  },
-  
-  async syncClients() {
-    await cacheService.fetchCollection('clients');
-    queryClient.invalidateQueries({ queryKey: [queryKeys.clients] });
-  },
-  
-  async syncVehicles() {
-    await cacheService.fetchCollection('vehicles');
-    queryClient.invalidateQueries({ queryKey: [queryKeys.vehicles] });
-  },
-  
-  async syncServices() {
-    await cacheService.fetchCollection('services');
+  }');
     queryClient.invalidateQueries({ queryKey: [queryKeys.services] });
   },
   
