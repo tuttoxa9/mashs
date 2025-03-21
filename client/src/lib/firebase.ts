@@ -14,12 +14,12 @@ import { User } from "@shared/schema";
 
 // Firebase конфигурация
 const firebaseConfig = {
-  apiKey: "AIzaSyD5LShret_8DCnzobxj1FtR4KWsl5uQoF4",
-  authDomain: "wash-33cd8.firebaseapp.com",
-  projectId: "wash-33cd8",
-  storageBucket: "wash-33cd8.firebasestorage.app",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD5LShret_8DCnzobxj1FtR4KWsl5uQoF4",
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "wash-33cd8"}.firebaseapp.com`,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "wash-33cd8",
+  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "wash-33cd8"}.firebasestorage.app`,
   messagingSenderId: "583285802651",
-  appId: "1:583285802651:web:cf20935cad4e76b9d0283e",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:583285802651:web:cf20935cad4e76b9d0283e",
   measurementId: "G-N6X46N10PC"
 };
 

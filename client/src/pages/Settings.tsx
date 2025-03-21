@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Info, Copy, ExternalLink } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -28,6 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { db } from "@/lib/firebase";
 import { formatBelarusPhone } from "@/lib/utils";
 import { collection, getDocs, limit, query } from "firebase/firestore";
+import { checkFirestoreAccess, getFirestoreRulesInstructions, initializeFirestoreStructure } from "@/lib/firestoreRules";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const profileFormSchema = z.object({
@@ -120,19 +121,31 @@ export default function Settings() {
     });
   };
   
-  // Проверка подключения к Firebase
+  // Проверка подключения к Firebase и базовые настройки
   const checkFirebaseConnection = async () => {
     setFirebaseStatus('loading');
     try {
-      // Пытаемся получить данные из Firestore для проверки подключения
-      const q = query(collection(db, 'users'), limit(1));
-      await getDocs(q);
-      setFirebaseStatus('connected');
+      // Сначала проверяем доступ к Firestore
+      const hasAccess = await checkFirestoreAccess();
       
-      toast({
-        title: "Firebase подключен",
-        description: "Соединение с Firebase успешно установлено.",
-      });
+      if (hasAccess) {
+        // Если успешно, пытаемся инициализировать структуру базы данных
+        await initializeFirestoreStructure();
+        setFirebaseStatus('connected');
+        
+        toast({
+          title: "Firebase подключен",
+          description: "Соединение с Firebase успешно установлено.",
+        });
+      } else {
+        setFirebaseStatus('error');
+        
+        toast({
+          title: "Ошибка подключения к Firebase",
+          description: "Не удалось подключиться к Firebase. Проверьте правила доступа в консоли Firebase.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error checking Firebase connection:", error);
       setFirebaseStatus('error');
@@ -143,6 +156,35 @@ export default function Settings() {
         variant: "destructive",
       });
     }
+  };
+  
+  // Копирование инструкций по настройке правил безопасности в буфер обмена
+  const copyFirestoreRules = () => {
+    const rules = `
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Для тестирования разрешаем полный доступ
+    // ВНИМАНИЕ: Это временное решение только для разработки!
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}`;
+    
+    navigator.clipboard.writeText(rules).then(() => {
+      toast({
+        title: "Скопировано в буфер обмена",
+        description: "Правила безопасности Firebase скопированы в буфер обмена.",
+      });
+    }).catch(err => {
+      console.error("Ошибка при копировании: ", err);
+      toast({
+        title: "Ошибка копирования",
+        description: "Не удалось скопировать правила в буфер обмена.",
+        variant: "destructive",
+      });
+    });
   };
   
   // При открытии вкладки системных настроек выполняем проверку
@@ -524,7 +566,7 @@ export default function Settings() {
                         Ошибка подключения к Firebase
                       </p>
                       <p className="text-xs">
-                        Проверьте настройки доступа в Firebase Console и убедитесь, что все переменные окружения установлены корректно
+                        Проверьте настройки доступа в Firebase Console и убедитесь, что правила безопасности настроены правильно
                       </p>
                     </div>
                   </div>
@@ -544,6 +586,60 @@ export default function Settings() {
                     "Проверить соединение"
                   )}
                 </Button>
+                
+                {firebaseStatus === 'error' && (
+                  <div className="mt-4 space-y-4">
+                    <div className="bg-white border rounded-md p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium flex items-center">
+                          <Info className="h-4 w-4 mr-2 text-blue-500" />
+                          Инструкция по настройке правил безопасности Firebase
+                        </h4>
+                        <Button
+                          onClick={copyFirestoreRules}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2"
+                        >
+                          <Copy className="h-3.5 w-3.5 mr-1" />
+                          Копировать правила
+                        </Button>
+                      </div>
+                      
+                      <ol className="space-y-2 text-sm text-gray-700 ml-5 list-decimal">
+                        <li>Перейдите в <a href="https://console.firebase.google.com/project/wash-33cd8/firestore" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center">
+                          Firebase Console
+                          <ExternalLink className="h-3 w-3 ml-0.5" />
+                        </a></li>
+                        <li>Выберите проект <strong>wash-33cd8</strong></li>
+                        <li>В левом меню выберите <strong>Firestore Database</strong></li>
+                        <li>Перейдите на вкладку <strong>Rules</strong></li>
+                        <li>Замените существующие правила на следующие:</li>
+                      </ol>
+                      
+                      <div className="bg-gray-100 rounded-md p-3 mt-2 font-mono text-xs text-gray-800 overflow-x-auto">
+                        rules_version = '2';<br/>
+                        service cloud.firestore &#123;<br/>
+                        &nbsp;&nbsp;match /databases/&#123;database&#125;/documents &#123;<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// Для тестирования разрешаем полный доступ<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// ВНИМАНИЕ: Это временное решение только для разработки!<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;match /&#123;document=**&#125; &#123;<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&#125;<br/>
+                        &nbsp;&nbsp;&#125;<br/>
+                        &#125;
+                      </div>
+                      
+                      <p className="text-xs text-red-600 mt-3 flex items-start">
+                        <AlertCircle className="h-3.5 w-3.5 mr-1 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Внимание! Эти правила разрешают полный доступ к базе данных для всех пользователей.
+                          Используйте их только для разработки. В продакшене необходимо настроить более строгие правила безопасности.
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md mt-2">
                   <p className="text-sm">
